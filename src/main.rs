@@ -73,6 +73,10 @@ impl Application for App {
         }
     }
 
+    fn subscription(&self) -> iced::Subscription<Self::Message> {
+        self.nav_tree.refresh_directory().map(Message::NavTree)
+    }
+
     fn view(&mut self) -> Element<'_, Self::Message> {
         let nav_tree = nav_tree::NavigationTree::view(&mut self.nav_tree).map(Message::NavTree);
 
@@ -98,6 +102,7 @@ mod nav_tree {
     use std::fs;
     use std::future::Future;
     use std::path::PathBuf;
+    use std::time;
 
     #[derive(Debug, Clone)]
     pub enum Message {
@@ -105,6 +110,7 @@ mod nav_tree {
         DirectoryRead(Option<(PathBuf, Vec<Entry>)>),
         ReadFile(PathBuf),
         FileRead(Option<(PathBuf, String)>),
+        RefreshDirectory,
     }
 
     #[derive(Debug, Clone)]
@@ -255,6 +261,16 @@ mod nav_tree {
                         return (Command::none(), Some(Event::FileRead(path, content)));
                     }
                 }
+                Message::RefreshDirectory => {
+                    if let Self::Loaded { directory, .. } = &self {
+                        return (
+                            Command::perform(self.read_directory(directory.clone()), |message| {
+                                message
+                            }),
+                            None,
+                        );
+                    }
+                }
             }
 
             (Command::none(), None)
@@ -266,6 +282,11 @@ mod nav_tree {
 
         pub fn read_file(&self, path: PathBuf) -> impl Future<Output = Message> {
             read_file(path).map(Message::FileRead)
+        }
+
+        pub fn refresh_directory(&self) -> iced::Subscription<Message> {
+            iced_futures::time::every(time::Duration::from_secs(1))
+                .map(|_| Message::RefreshDirectory)
         }
     }
 

@@ -4,4 +4,6 @@ version = "0.1.0"
 edition = "2018"
 
 [dependencies]
-iced = "0.3.0"
+iced = { version = "0.3.0", features = ["async-std"] }
+iced_native = "0.4.0"
+iced_futures = "0.3.0"
