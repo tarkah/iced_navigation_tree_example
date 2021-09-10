@@ -18,11 +18,11 @@ fn main() {
 
 #[derive(Debug, Clone)]
 enum Message {
-    Navigation(navigation::Message),
+    NavTree(nav_tree::Message),
 }
 
 struct App {
-    navigation: navigation::State,
+    nav_tree: nav_tree::State,
     read_file: Option<(PathBuf, String)>,
     scrollable: scrollable::State,
 }
@@ -33,13 +33,13 @@ impl Application for App {
     type Executor = executor::Default;
 
     fn new(current_dir: Self::Flags) -> (Self, Command<Self::Message>) {
-        let navigation = navigation::State::Loading(current_dir.clone());
+        let nav_tree = nav_tree::State::Loading(current_dir.clone());
 
-        let command = Command::perform(navigation.read_directory(current_dir), Message::Navigation);
+        let command = Command::perform(nav_tree.read_directory(current_dir), Message::NavTree);
 
         (
             Self {
-                navigation,
+                nav_tree,
                 read_file: Default::default(),
                 scrollable: Default::default(),
             },
@@ -57,25 +57,24 @@ impl Application for App {
         _clipboard: &mut Clipboard,
     ) -> Command<Self::Message> {
         match message {
-            Message::Navigation(message) => {
-                let (command, event) = self.navigation.update(message);
+            Message::NavTree(message) => {
+                let (command, event) = self.nav_tree.update(message);
 
                 if let Some(event) = event {
                     match event {
-                        navigation::Event::FileRead(path, content) => {
+                        nav_tree::Event::FileRead(path, content) => {
                             self.read_file = Some((path, content));
                         }
                     }
                 }
 
-                command.map(Message::Navigation)
+                command.map(Message::NavTree)
             }
         }
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
-        let nav_tree =
-            navigation::NavigationTree::view(&mut self.navigation).map(Message::Navigation);
+        let nav_tree = nav_tree::NavigationTree::view(&mut self.nav_tree).map(Message::NavTree);
 
         let read_file = if let Some((path, content)) = self.read_file.as_ref() {
             format!("File: {:?}\n\n{}", path, content)
@@ -90,7 +89,7 @@ impl Application for App {
     }
 }
 
-mod navigation {
+mod nav_tree {
     use iced::button::{self, Button};
     use iced::futures::FutureExt;
     use iced::scrollable::{self, Scrollable};
