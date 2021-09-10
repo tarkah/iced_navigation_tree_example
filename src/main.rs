@@ -78,7 +78,7 @@ impl Application for App {
     }
 
     fn view(&mut self) -> Element<'_, Self::Message> {
-        let nav_tree = nav_tree::NavigationTree::view(&mut self.nav_tree).map(Message::NavTree);
+        let nav_tree = nav_tree::view(&mut self.nav_tree).map(Message::NavTree);
 
         let read_file = if let Some((path, content)) = self.read_file.as_ref() {
             format!("File: {:?}\n\n{}", path, content)
@@ -118,57 +118,53 @@ mod nav_tree {
         FileRead(PathBuf, String),
     }
 
-    pub struct NavigationTree {}
+    pub fn view(state: &mut State) -> Element<Message> {
+        let content: Element<_> = match state {
+            State::Loading(directory) => {
+                let text = Text::new(format!("Loading {:?}...", directory));
 
-    impl NavigationTree {
-        pub fn view(state: &mut State) -> Element<Message> {
-            let content: Element<_> = match state {
-                State::Loading(directory) => {
-                    let text = Text::new(format!("Loading {:?}...", directory));
+                Container::new(text).center_x().center_y().into()
+            }
+            State::Loaded {
+                directory,
+                entries,
+                entry_buttons: buttons,
+                up_button,
+                scrollable,
+            } => {
+                let mut scrollable = Scrollable::new(scrollable);
 
-                    Container::new(text).center_x().center_y().into()
+                if let Some(parent) = directory.parent() {
+                    let content = Text::new("..");
+
+                    let button = Button::new(up_button, content)
+                        .on_press(Message::ChangeDirectory(parent.to_path_buf()));
+
+                    scrollable = scrollable.push(button);
+                };
+
+                for (entry, button) in entries.iter_mut().zip(buttons.iter_mut()) {
+                    let name = entry.name();
+                    let message = entry.message();
+
+                    let content = Text::new(name);
+
+                    let button = Button::new(button, content).on_press(message);
+
+                    scrollable = scrollable.push(button);
                 }
-                State::Loaded {
-                    directory,
-                    entries,
-                    entry_buttons: buttons,
-                    up_button,
-                    scrollable,
-                } => {
-                    let mut scrollable = Scrollable::new(scrollable);
 
-                    if let Some(parent) = directory.parent() {
-                        let content = Text::new("..");
+                let header = Text::new(format!("Entries for {:?}", directory));
 
-                        let button = Button::new(up_button, content)
-                            .on_press(Message::ChangeDirectory(parent.to_path_buf()));
+                Column::new()
+                    .spacing(10)
+                    .push(header)
+                    .push(scrollable)
+                    .into()
+            }
+        };
 
-                        scrollable = scrollable.push(button);
-                    };
-
-                    for (entry, button) in entries.iter_mut().zip(buttons.iter_mut()) {
-                        let name = entry.name();
-                        let message = entry.message();
-
-                        let content = Text::new(name);
-
-                        let button = Button::new(button, content).on_press(message);
-
-                        scrollable = scrollable.push(button);
-                    }
-
-                    let header = Text::new(format!("Entries for {:?}", directory));
-
-                    Column::new()
-                        .spacing(10)
-                        .push(header)
-                        .push(scrollable)
-                        .into()
-                }
-            };
-
-            Container::new(content).width(Length::Units(300)).into()
-        }
+        Container::new(content).width(Length::Units(300)).into()
     }
 
     #[derive(Debug, Clone, PartialEq, Eq)]
